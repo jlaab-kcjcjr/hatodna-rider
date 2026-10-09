@@ -553,3 +553,11 @@ img { max-width: 100%; display: block; }
 .contact-line { margin-top: 1.25rem; text-align: center; }
 .offer + .offer { margin-top: 0.875rem; }
 .offer-actions .btn-primary { flex: 1; }
+
+/* ===== Rider delivery map ===== */
+.job-map { margin-bottom: 1rem; }
+.notice-box {
+  margin: 0.75rem 0; padding: 0.875rem 1rem; border-radius: var(--radius-sm);
+  background: var(--sili-soft); color: var(--sili-deep); font-weight: 600;
+}
+.map-btn-main { background: var(--sili); color: #fff; }

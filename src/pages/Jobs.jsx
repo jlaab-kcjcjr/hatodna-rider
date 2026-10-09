@@ -34,6 +34,7 @@ function OrderOffer({ order }) {
       <p className="offer-earning">{peso(order.rider_earning)}</p>
       <p className="muted">
         {count} {count === 1 ? 'item' : 'items'}, collect {peso(order.total)} cash
+        {order.distance_km ? `, about ${order.distance_km} km delivery` : ''}
       </p>
 
       <div className="route">

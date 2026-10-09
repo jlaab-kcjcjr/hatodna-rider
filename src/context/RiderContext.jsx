@@ -3,9 +3,10 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { uploadPrivate } from '../utils/photos';
 import { playChime } from '../utils/chime';
+import { useLocationSharing } from '../utils/useLocationSharing';
 
 const RiderContext = createContext(null);
-const JOB_SELECT = '*, store:stores(name, address, town, phone), order_items(name, qty)';
+const JOB_SELECT = '*, store:stores(name, address, town, phone, lat, lng), order_items(name, qty)';
 const ACTIVE_STATUSES = ['preparing', 'ready', 'on_the_way'];
 const POLL_MS = 15000;
 
@@ -23,6 +24,7 @@ export function RiderProvider({ children }) {
   const [activeJob, setActiveJob] = useState(null);
   const [history, setHistory] = useState([]);
   const knownIds = useRef(new Set());
+  const location = useLocationSharing(Boolean(activeJob));  
 
   const riderLoading = Boolean(userId) && loadedFor !== userId;
   const approved = rider?.status === 'approved';
@@ -187,6 +189,8 @@ export function RiderProvider({ children }) {
         pickUp,
         completeDelivery,
         reloadRider: loadRider,
+        myLocation: location.position,
+        locationStatus: location.status,        
       }}
     >
       {children}
