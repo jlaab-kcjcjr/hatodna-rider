@@ -1,90 +1,133 @@
 import { useState } from 'react';
-import { Navigation, Camera } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { DELIVERY_STEPS } from '../data/riderData';
-import { compressImage } from '../utils/photos';
+import { Navigation, Camera, Phone } from 'lucide-react';
+import { useRider } from '../context/RiderContext';
 import { peso } from '../utils/format';
 import BanigBand from './BanigBand';
 
-export default function ActiveJob() {
-  const { activeJob: job, advanceJob } = useAuth();
-  const [proof, setProof] = useState('');
-  const [error, setError] = useState('');
+const STAGES = ['preparing', 'ready', 'on_the_way'];
 
-  const step = job.step;
-  const current = DELIVERY_STEPS[step];
-  const lastStep = step === DELIVERY_STEPS.length - 1;
-  const goingToStore = step < 2;
-  const place = goingToStore
-    ? { name: job.store, address: job.storeAddress, landmark: '' }
-    : { name: job.customer, address: job.customerAddress, landmark: job.landmark };
+export default function ActiveJob() {
+  const { activeJob: job, pickUp, completeDelivery } = useRider();
+  const [proofFile, setProofFile] = useState(null);
+  const [proofPreview, setProofPreview] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const delivering = job.status === 'on_the_way';
+  const stage = STAGES.indexOf(job.status);
+  const place = delivering
+    ? {
+        label: 'Deliver to',
+        name: job.customer_name || 'Customer',
+        address: job.address,
+        landmark: job.landmark,
+        phone: job.customer_phone,
+      }
+    : {
+        label: 'Pick up from',
+        name: job.store?.name ?? 'Store',
+        address: `${job.store?.address ?? ''}, ${job.store?.town ?? ''}`,
+        landmark: '',
+        phone: job.store?.phone,
+      };
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${place.address}, Albay`)}`;
 
-  const onProof = async (e) => {
+  const title = {
+    preparing: 'Head to the store',
+    ready: 'Pick up the order',
+    on_the_way: 'Deliver to the customer',
+  }[job.status];
+
+  const onProof = (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    setProofFile(file);
+    setProofPreview(URL.createObjectURL(file));
+    setError('');
+  };
+
+  const run = async (task) => {
+    setBusy(true);
+    setError('');
     try {
-      setProof(await compressImage(file, 700, 0.6));
-      setError('');
-    } catch {
-      setError('That photo could not be read. Try taking it again.');
+      await task();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
     }
   };
 
-  const onAction = () => {
-    if (lastStep && !proof) {
+  const onComplete = () => {
+    if (!proofFile) {
       setError('Take a proof-of-delivery photo before completing.');
       return;
     }
-    if (lastStep) window.alert(`Delivery complete. You earned ${peso(job.earning)}. Ingat sa biyahe!`);
-    setError('');
-    advanceJob();
+    run(async () => {
+      await completeDelivery(job.id, proofFile);
+      window.alert(`Delivery complete. You earned ${peso(job.rider_earning)}. Ingat sa biyahe!`);
+    });
   };
 
   return (
     <div className="page page-narrow">
-      <p className="hello">Delivery in progress</p>
-      <h1 className="page-title">{current.title}</h1>
+      <p className="hello">
+        Delivery in progress, {job.code}
+      </p>
+      <h1 className="page-title">{title}</h1>
       <div className="progress">
-        {DELIVERY_STEPS.map((s, i) => (
-          <span key={s.title} className={`progress-bar${i < step ? ' done' : ''}${i === step ? ' now' : ''}`} />
+        {STAGES.map((s, i) => (
+          <span key={s} className={`progress-bar${i < stage ? ' done' : ''}${i === stage ? ' now' : ''}`} />
         ))}
       </div>
       <div className="bleed">
         <BanigBand id="job-band" height={10} />
       </div>
 
+      {job.status === 'preparing' && (
+        <p className="keep-open">The store is still preparing this order. Head there now, and the button below unlocks once they mark it ready.</p>
+      )}
+
       <section className="job-card">
-        <p className="job-label">{goingToStore ? 'Pick up from' : 'Deliver to'}</p>
+        <p className="job-label">{place.label}</p>
         <p className="job-place">{place.name}</p>
         <p className="muted">{place.address}</p>
         {place.landmark && <p className="job-landmark">Landmark: {place.landmark}</p>}
-        <a className="map-btn" href={mapsUrl} target="_blank" rel="noreferrer">
-          <Navigation size={18} aria-hidden="true" />
-          Open in Maps
-        </a>
+        <div className="job-buttons">
+          <a className="map-btn" href={mapsUrl} target="_blank" rel="noreferrer">
+            <Navigation size={18} aria-hidden="true" />
+            Open in Maps
+          </a>
+          {place.phone && (
+            <a className="map-btn" href={`tel:${place.phone}`}>
+              <Phone size={18} aria-hidden="true" />
+              Call
+            </a>
+          )}
+        </div>
       </section>
 
       <section className="job-card">
         <p className="job-label">Order items</p>
-        {job.items.map((i) => (
+        {(job.order_items ?? []).map((i) => (
           <p key={i.name}>
             {i.qty} × {i.name}
           </p>
         ))}
+        {job.note && <p className="muted small">Note: {job.note}</p>}
       </section>
 
-      <section className={`job-card${lastStep ? ' cash-card' : ''}`}>
+      <section className={`job-card${delivering ? ' cash-card' : ''}`}>
         <p className="job-label">Collect from customer</p>
-        <p className="cash">{peso(job.orderTotal)}</p>
-        <p className="muted">Cash on delivery. Your earning: {peso(job.earning)}</p>
+        <p className="cash">{peso(job.total)}</p>
+        <p className="muted">Cash on delivery. Your earning: {peso(job.rider_earning)}</p>
       </section>
 
-      {lastStep && (
+      {delivering && (
         <label className="proof">
-          {proof ? <img src={proof} alt="Proof of delivery" /> : <Camera size={26} aria-hidden="true" />}
-          <span>{proof ? 'Proof photo added. Tap to retake.' : 'Take proof of delivery photo'}</span>
+          {proofPreview ? <img src={proofPreview} alt="Proof of delivery" /> : <Camera size={26} aria-hidden="true" />}
+          <span>{proofPreview ? 'Proof photo added. Tap to retake.' : 'Take proof of delivery photo'}</span>
           <input type="file" accept="image/*" capture="environment" onChange={onProof} hidden />
         </label>
       )}
@@ -92,9 +135,21 @@ export default function ActiveJob() {
       {error && <p className="form-error register-error">{error}</p>}
 
       <div className="action-bar">
-        <button type="button" className="btn btn-primary btn-block" onClick={onAction}>
-          {current.action}
-        </button>
+        {job.status === 'preparing' && (
+          <button type="button" className="btn btn-primary btn-block" disabled>
+            Waiting for the store to finish...
+          </button>
+        )}
+        {job.status === 'ready' && (
+          <button type="button" className="btn btn-primary btn-block" disabled={busy} onClick={() => run(() => pickUp(job.id))}>
+            {busy ? 'Saving...' : 'Order picked up'}
+          </button>
+        )}
+        {delivering && (
+          <button type="button" className="btn btn-primary btn-block" disabled={busy} onClick={onComplete}>
+            {busy ? 'Uploading proof...' : 'Complete delivery'}
+          </button>
+        )}
       </div>
     </div>
   );

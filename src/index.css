@@ -546,3 +546,10 @@ img { max-width: 100%; display: block; }
 @media (min-width: 48em) {
   .action-bar { bottom: 0; }
 }
+
+/* ===== Rider site connected to Supabase ===== */
+.page-loading { min-height: 50vh; display: grid; place-items: center; color: var(--ink-soft); font-weight: 600; }
+.job-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.contact-line { margin-top: 1.25rem; text-align: center; }
+.offer + .offer { margin-top: 0.875rem; }
+.offer-actions .btn-primary { flex: 1; }

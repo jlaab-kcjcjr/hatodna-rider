@@ -1,5 +1,4 @@
-// Demo only. Once the backend exists, a real code is sent by SMS.
-export const DEMO_OTP = '123456';
+// Choices used during rider sign-up. Real delivery requests now come from Supabase.
 
 export const TOWNS = ['Legazpi City', 'Daraga', 'Tabaco City', 'Ligao City', 'Camalig', 'Guinobatan', 'Sto. Domingo'];
 
@@ -10,58 +9,4 @@ export const DOCUMENTS = [
   { key: 'orcr', label: 'Vehicle OR/CR', motorOnly: true },
   { key: 'clearance', label: 'NBI or police clearance', motorOnly: false },
   { key: 'selfie', label: 'Selfie holding your ID', motorOnly: false },
-];
-
-export const DELIVERY_STEPS = [
-  { title: 'Head to the store', action: "I'm at the store" },
-  { title: 'Pick up the order', action: 'Order picked up' },
-  { title: 'Deliver to the customer', action: "I'm at the customer" },
-  { title: 'Collect payment and hand over', action: 'Complete delivery' },
-];
-
-// Share of each delivery fee the rider keeps. This is an example; your team sets the real rate.
-export const RIDER_SHARE = 0.8;
-
-// Sample requests. Later, these come from the backend when customers order.
-// orderTotal = food + delivery fee, the amount the rider collects in cash.
-export const SAMPLE_JOBS = [
-  {
-    store: 'Tiya Nena Carinderia',
-    storeAddress: 'Rizal St., Legazpi City',
-    customer: 'Maria S.',
-    customerAddress: 'Purok 3, Brgy. Bitano, Legazpi City',
-    landmark: 'Near the chapel, blue gate',
-    distanceKm: 2.4,
-    items: [
-      { name: 'Bicol Express with rice', qty: 2 },
-      { name: 'Sili ice cream', qty: 1 },
-    ],
-    orderTotal: 299,
-    deliveryFee: 49,
-  },
-  {
-    store: 'Daraga Pili Treats',
-    storeAddress: 'Brgy. Sagpon, Daraga',
-    customer: 'Jun R.',
-    customerAddress: 'Brgy. Busay, Daraga',
-    landmark: 'Across the basketball court',
-    distanceKm: 3.1,
-    items: [{ name: 'Pili tart (box of 6)', qty: 1 }],
-    orderTotal: 239,
-    deliveryFee: 59,
-  },
-  {
-    store: 'Albay Fresh Mart',
-    storeAddress: 'Peñaranda St., Legazpi City',
-    customer: 'Liza M.',
-    customerAddress: 'Brgy. Rawis, Legazpi City',
-    landmark: 'Green gate beside the sari-sari store',
-    distanceKm: 4.0,
-    items: [
-      { name: 'Rice 5kg', qty: 1 },
-      { name: 'Eggs (1 dozen)', qty: 1 },
-    ],
-    orderTotal: 469,
-    deliveryFee: 69,
-  },
 ];

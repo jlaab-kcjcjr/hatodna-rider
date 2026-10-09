@@ -5,29 +5,33 @@ import { useAuth } from '../context/AuthContext';
 import MayonMark from '../components/MayonMark';
 import BanigBand from '../components/BanigBand';
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function Login() {
-  const { user, requestOtp } = useAuth();
+  const { session, requestOtp } = useAuth();
   const navigate = useNavigate();
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  if (user) return <Navigate to="/" replace />;
+  if (session) return <Navigate to="/" replace />;
 
-  const onChange = (e) => {
-    let digits = e.target.value.replace(/\D/g, '');
-    if (digits.startsWith('0')) digits = digits.slice(1); // accept 0917... too
-    setPhone(digits.slice(0, 10));
-    setError('');
-  };
-
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
-    if (!/^9\d{9}$/.test(phone)) {
-      setError('Enter a valid mobile number, like 917 123 4567.');
+    const value = email.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(value)) {
+      setError('Enter a valid email address, like juan@gmail.com.');
       return;
     }
-    requestOtp(`+63${phone}`);
-    navigate('/verify');
+    setBusy(true);
+    setError('');
+    try {
+      await requestOtp(value);
+      navigate('/verify');
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
   };
 
   return (
@@ -46,26 +50,29 @@ export default function Login() {
       </section>
 
       <form className="auth-form" onSubmit={onSubmit}>
-        <h1>Log in with your mobile number</h1>
-        <div className={`phone-field${error ? ' has-error' : ''}`}>
-          <span className="phone-prefix">+63</span>
+        <h1>Log in with your email</h1>
+        <label className="field">
+          <span>Email address</span>
           <input
-            type="tel"
-            inputMode="numeric"
-            autoComplete="tel-national"
-            placeholder="917 123 4567"
-            value={phone}
-            onChange={onChange}
-            aria-label="Mobile number"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="juan@gmail.com"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setError('');
+            }}
+            className={error ? 'has-error' : ''}
           />
-        </div>
+        </label>
         {error ? (
           <p className="form-error">{error}</p>
         ) : (
-          <p className="muted small">We'll text you a 6-digit code to confirm it's you.</p>
+          <p className="muted small">We'll email you a 6-digit code. New here? Your account is created automatically.</p>
         )}
-        <button type="submit" className="btn btn-primary btn-block">
-          Send code
+        <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
+          {busy ? 'Sending code...' : 'Send code'}
         </button>
         <Link to="/install" className="link small center">
           How to add HatodNa to your phone

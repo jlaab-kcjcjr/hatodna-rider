@@ -1,29 +1,35 @@
 import { Link } from 'react-router-dom';
-import { ShieldCheck, Smartphone, CircleHelp, LogOut, ChevronRight } from 'lucide-react';
+import { ShieldCheck, Smartphone, LogOut, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useRider } from '../context/RiderContext';
 import { initialsOf } from '../utils/format';
 import BanigBand from '../components/BanigBand';
 
+const showPhone = (phone) => (phone?.startsWith('+63') ? `0${phone.slice(3)}` : phone || 'Not provided');
+
 export default function Profile() {
-  const { user, application, history, logout } = useAuth();
+  const { session, profile, logout } = useAuth();
+  const { rider, history } = useRider();
+  const name = profile?.full_name || 'Rider';
 
   const details = [
-    { key: 'Service area', value: application.town },
-    { key: 'Vehicle', value: `${application.vehicle}${application.plate ? `, ${application.plate}` : ''}` },
+    { key: 'Mobile', value: showPhone(profile?.phone) },
+    { key: 'Service area', value: rider.town },
+    { key: 'Vehicle', value: `${rider.vehicle}${rider.plate ? `, ${rider.plate}` : ''}` },
     { key: 'Documents', value: 'Verified' },
-    { key: 'Total deliveries', value: String(history.length) },
+    { key: 'Completed deliveries', value: String(history.length) },
   ];
 
   const onLogout = () => {
-    if (window.confirm("Log out? You'll go offline and need to verify your number again.")) logout();
+    if (window.confirm("Log out? You'll need a new email code to log back in.")) logout();
   };
 
   return (
     <div className="page page-narrow">
       <section className="profile-hero">
-        <div className="avatar avatar-pili">{initialsOf(application.name)}</div>
-        <h1 className="profile-name">{application.name}</h1>
-        <p className="muted">{user.phone}</p>
+        <div className="avatar avatar-pili">{initialsOf(name)}</div>
+        <h1 className="profile-name">{name}</h1>
+        <p className="muted">{session?.user.email}</p>
         <span className="badge">
           <ShieldCheck size={14} aria-hidden="true" />
           Approved rider
@@ -49,17 +55,6 @@ export default function Profile() {
             <span>Add HatodNa Rider to your phone</span>
             <ChevronRight size={18} aria-hidden="true" />
           </Link>
-        </li>
-        <li>
-          <button
-            type="button"
-            className="menu-row"
-            onClick={() => window.alert('Help and support is coming in the next update.')}
-          >
-            <CircleHelp size={20} aria-hidden="true" />
-            <span>Help and support</span>
-            <ChevronRight size={18} aria-hidden="true" />
-          </button>
         </li>
         <li>
           <button type="button" className="menu-row danger" onClick={onLogout}>

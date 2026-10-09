@@ -2,25 +2,37 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Camera, CircleCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useRider } from '../context/RiderContext';
 import { TOWNS, VEHICLES, DOCUMENTS } from '../data/riderData';
-import { compressImage } from '../utils/photos';
 import BanigBand from '../components/BanigBand';
 
 const STEP_TITLES = ['About you', 'Your vehicle', 'Documents'];
+const MAX_FILE_BYTES = 15 * 1024 * 1024;
+
+function toInternational(input) {
+  let digits = input.replace(/\D/g, '');
+  if (digits.startsWith('63')) digits = digits.slice(2);
+  if (digits.startsWith('0')) digits = digits.slice(1);
+  return /^9\d{9}$/.test(digits) ? `+63${digits}` : null;
+}
 
 export default function Register() {
-  const { user, application, submitApplication, logout } = useAuth();
+  const { session, loading, profile, logout } = useAuth();
+  const { rider, riderLoading, registerRider } = useRider();
   const [step, setStep] = useState(0);
-  const [name, setName] = useState('');
+  const [name, setName] = useState(profile?.full_name ?? '');
+  const [phone, setPhone] = useState('');
   const [town, setTown] = useState('');
   const [vehicle, setVehicle] = useState('');
   const [plate, setPlate] = useState('');
-  const [docs, setDocs] = useState({});
-  const [busyDoc, setBusyDoc] = useState('');
+  const [docs, setDocs] = useState({}); // { license: File, ... }
+  const [previews, setPreviews] = useState({});
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  if (!user) return <Navigate to="/login" replace />;
-  if (application) return <Navigate to="/" replace />;
+  if (loading || riderLoading) return <p className="page-loading">Loading...</p>;
+  if (!session) return <Navigate to="/login" replace />;
+  if (rider) return <Navigate to="/" replace />;
 
   const needsMotorDocs = vehicle !== 'Bicycle';
   const requiredDocs = DOCUMENTS.filter((d) => needsMotorDocs || !d.motorOnly);
@@ -28,6 +40,7 @@ export default function Register() {
   const validate = () => {
     if (step === 0) {
       if (name.trim().length < 3) return 'Enter your full name as it appears on your ID.';
+      if (!toInternational(phone)) return 'Enter your mobile number, like 0917 123 4567.';
       if (!town) return 'Choose the town where you will deliver.';
     }
     if (step === 1) {
@@ -41,7 +54,18 @@ export default function Register() {
     return '';
   };
 
-  const onContinue = (e) => {
+  const onPhoto = (doc, e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return setError('Choose a photo (image file).');
+    if (file.size > MAX_FILE_BYTES) return setError('That photo is too large. Use one under 15 MB.');
+    setDocs((d) => ({ ...d, [doc.key]: file }));
+    setPreviews((p) => ({ ...p, [doc.key]: URL.createObjectURL(file) }));
+    setError('');
+  };
+
+  const onContinue = async (e) => {
     e.preventDefault();
     const problem = validate();
     if (problem) {
@@ -53,35 +77,28 @@ export default function Register() {
       setStep(step + 1);
       return;
     }
-    submitApplication({
-      name: name.trim(),
-      town,
-      vehicle,
-      plate: needsMotorDocs ? plate.trim().toUpperCase() : '',
-      docs,
-    });
+    // Only upload the documents needed for the chosen vehicle.
+    const neededDocs = Object.fromEntries(requiredDocs.map((d) => [d.key, docs[d.key]]));
+    setBusy(true);
+    try {
+      await registerRider({
+        fullName: name.trim(),
+        phone: toInternational(phone),
+        town,
+        vehicle,
+        plate: needsMotorDocs ? plate.trim().toUpperCase() : '',
+        docs: neededDocs,
+      });
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
   };
 
   const onBack = () => {
     setError('');
     if (step === 0) logout();
     else setStep(step - 1);
-  };
-
-  const onPhoto = async (doc, e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    setBusyDoc(doc.key);
-    try {
-      const dataUrl = await compressImage(file);
-      setDocs((d) => ({ ...d, [doc.key]: dataUrl }));
-      setError('');
-    } catch {
-      setError('That photo could not be read. Try another one.');
-    } finally {
-      setBusyDoc('');
-    }
   };
 
   return (
@@ -106,8 +123,19 @@ export default function Register() {
               <span>Full name</span>
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Juan Dela Cruz" autoComplete="name" />
             </label>
-            <span className="field-label">Mobile number</span>
-            <p className="readonly">{user.phone}</p>
+            <label className="field">
+              <span>Mobile number</span>
+              <input
+                type="tel"
+                inputMode="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="0917 123 4567"
+                autoComplete="tel"
+              />
+            </label>
+            <span className="field-label">Email</span>
+            <p className="readonly">{session.user.email}</p>
             <span className="field-label">Where will you deliver?</span>
             <div className="wrap" role="group" aria-label="Delivery town">
               {TOWNS.map((t) => (
@@ -144,12 +172,7 @@ export default function Register() {
             {needsMotorDocs && vehicle !== '' && (
               <label className="field plate-field">
                 <span>Plate number</span>
-                <input
-                  value={plate}
-                  onChange={(e) => setPlate(e.target.value)}
-                  placeholder="ABC 1234"
-                  autoCapitalize="characters"
-                />
+                <input value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="ABC 1234" autoCapitalize="characters" />
               </label>
             )}
           </>
@@ -157,9 +180,11 @@ export default function Register() {
 
         {step === 2 && (
           <>
-            <p className="muted register-first">Take clear photos. Our team checks each one before approving you.</p>
+            <p className="muted register-first">
+              Take clear photos. They're stored privately, and only our review team can see them.
+            </p>
             {requiredDocs.map((d) => {
-              const src = docs[d.key];
+              const src = previews[d.key];
               return (
                 <label key={d.key} className="doc">
                   {src ? (
@@ -171,9 +196,7 @@ export default function Register() {
                   )}
                   <span className="doc-text">
                     <span className="doc-label">{d.label}</span>
-                    <span className={`doc-status${src ? ' ok' : ''}`}>
-                      {busyDoc === d.key ? 'Saving photo...' : src ? 'Added. Tap to replace.' : 'Tap to add a photo'}
-                    </span>
+                    <span className={`doc-status${src ? ' ok' : ''}`}>{src ? 'Added. Tap to replace.' : 'Tap to add a photo'}</span>
                   </span>
                   {src && <CircleCheck size={22} className="icon-pili" aria-hidden="true" />}
                   <input
@@ -192,11 +215,11 @@ export default function Register() {
         {error && <p className="form-error register-error">{error}</p>}
 
         <div className="register-actions">
-          <button type="button" className="btn btn-ghost" onClick={onBack}>
+          <button type="button" className="btn btn-ghost" onClick={onBack} disabled={busy}>
             {step === 0 ? 'Log out' : 'Back'}
           </button>
-          <button type="submit" className="btn btn-primary">
-            {step < 2 ? 'Continue' : 'Submit application'}
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? 'Uploading...' : step < 2 ? 'Continue' : 'Submit application'}
           </button>
         </div>
       </form>

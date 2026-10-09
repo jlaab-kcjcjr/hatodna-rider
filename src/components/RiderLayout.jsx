@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Bike, Wallet, UserRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useRider } from '../context/RiderContext';
 import { useWakeLock } from '../utils/useWakeLock';
 import { BRAND } from '../theme';
 
@@ -13,18 +14,20 @@ const TABS = [
 
 // Sends riders to the right step (login, sign-up, waiting for approval) before showing the tabs.
 export default function RiderLayout() {
-  const { user, application, online, activeJob } = useAuth();
+  const { session, loading } = useAuth();
+  const { rider, riderLoading, activeJob } = useRider();
   const { pathname } = useLocation();
 
-  useWakeLock(online || Boolean(activeJob));
+  useWakeLock(Boolean(rider?.is_online) || Boolean(activeJob));
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
 
-  if (!user) return <Navigate to="/login" replace />;
-  if (!application) return <Navigate to="/register" replace />;
-  if (application.status === 'pending') return <Navigate to="/pending" replace />;
+  if (loading || riderLoading) return <p className="page-loading">Loading...</p>;
+  if (!session) return <Navigate to="/login" replace />;
+  if (!rider) return <Navigate to="/register" replace />;
+  if (rider.status !== 'approved') return <Navigate to="/pending" replace />;
 
   return (
     <div className="app">

@@ -1,4 +1,4 @@
-import { useAuth } from '../context/AuthContext';
+import { useRider } from '../context/RiderContext';
 import { peso } from '../utils/format';
 import { useNow } from '../utils/useNow';
 import BanigBand from '../components/BanigBand';
@@ -6,22 +6,24 @@ import BanigBand from '../components/BanigBand';
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 function formatTime(timestamp) {
-  return new Date(timestamp).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+  const d = new Date(timestamp);
+  const date = d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+  const time = d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+  return `${date}, ${time}`;
 }
 
 export default function Earnings() {
-  const { history, remitCash } = useAuth();
+  const { history } = useRider();
   const now = useNow(60000);
 
   const todayKey = new Date(now).toDateString();
-  const today = history.filter((j) => new Date(j.completedAt).toDateString() === todayKey);
-  const week = history.filter((j) => now - j.completedAt < WEEK_MS);
-  const sum = (list) => list.reduce((total, j) => total + j.earning, 0);
-  const toRemit = history.filter((j) => !j.remitted).reduce((total, j) => total + (j.orderTotal - j.earning), 0);
-
-  const confirmRemit = () => {
-    if (window.confirm(`Confirm that you handed ${peso(toRemit)} to HatodNa.`)) remitCash();
-  };
+  const deliveredAt = (j) => new Date(j.delivered_at).getTime();
+  const today = history.filter((j) => new Date(j.delivered_at).toDateString() === todayKey);
+  const week = history.filter((j) => now - deliveredAt(j) < WEEK_MS);
+  const sum = (list) => list.reduce((total, j) => total + Number(j.rider_earning), 0);
+  const toRemit = history
+    .filter((j) => !j.cash_remitted && j.payment_method === 'cod')
+    .reduce((total, j) => total + Number(j.total) - Number(j.rider_earning), 0);
 
   return (
     <div className="page page-narrow">
@@ -49,13 +51,9 @@ export default function Earnings() {
         <p className="job-label">Cash to remit</p>
         <p className="remit-amount">{peso(toRemit)}</p>
         <p className="remit-sub">
-          The store's and HatodNa's share of the cash you collected. Remit it at the HatodNa office or by GCash.
+          The store's and HatodNa's share of the cash you collected. Remit it at the HatodNa office or by GCash, and our
+          team will mark it as received.
         </p>
-        {toRemit > 0 && (
-          <button type="button" className="btn btn-dark" onClick={confirmRemit}>
-            Mark as remitted
-          </button>
-        )}
       </section>
 
       <h2 className="section-title">Completed deliveries</h2>
@@ -67,13 +65,14 @@ export default function Earnings() {
             <li key={j.id} className="earn-row">
               <div className="earn-row-main">
                 <p className="route-name">
-                  {j.store} to {j.customer}
+                  {j.store?.name} to {j.customer_name || 'Customer'}
                 </p>
                 <p className="muted small">
-                  {formatTime(j.completedAt)}, {j.distanceKm} km
+                  {formatTime(j.delivered_at)}, {j.code}
+                  {j.cash_remitted ? ', cash remitted' : ''}
                 </p>
               </div>
-              <span className="earn-plus">+{peso(j.earning)}</span>
+              <span className="earn-plus">+{peso(j.rider_earning)}</span>
             </li>
           ))}
         </ul>
