@@ -6,7 +6,8 @@ import { useRider } from '../context/RiderContext';
 import { TOWNS, VEHICLES, DOCUMENTS } from '../data/riderData';
 import BanigBand from '../components/BanigBand';
 
-const STEP_TITLES = ['About you', 'Your vehicle', 'Documents'];
+// Matches the rider flowchart: personal information, then documents, then the rider profile.
+const STEP_TITLES = ['Personal information', 'Documents', 'Rider profile'];
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 
 function toInternational(input) {
@@ -34,8 +35,9 @@ export default function Register() {
   if (!session) return <Navigate to="/login" replace />;
   if (rider) return <Navigate to="/" replace />;
 
-  const needsMotorDocs = vehicle !== 'Bicycle';
-  const requiredDocs = DOCUMENTS.filter((d) => needsMotorDocs || !d.motorOnly);
+  const isMotor = vehicle !== '' && vehicle !== 'Bicycle';
+  const everyoneDocs = DOCUMENTS.filter((d) => !d.motorOnly);
+  const motorDocs = DOCUMENTS.filter((d) => d.motorOnly);
 
   const validate = () => {
     if (step === 0) {
@@ -44,12 +46,12 @@ export default function Register() {
       if (!town) return 'Choose the town where you will deliver.';
     }
     if (step === 1) {
-      if (!vehicle) return 'Choose the vehicle you will use.';
-      if (needsMotorDocs && plate.trim().length < 5) return 'Enter your plate number.';
+      const missing = everyoneDocs.find((d) => !docs[d.key]);
+      if (missing) return `Add a photo for "${missing.label}".`;
     }
     if (step === 2) {
-      const missing = requiredDocs.find((d) => !docs[d.key]);
-      if (missing) return `Add a photo for "${missing.label}".`;
+      if (!vehicle) return 'Choose the vehicle you will use.';
+      if (isMotor && plate.trim().length < 5) return 'Enter your plate number.';
     }
     return '';
   };
@@ -77,7 +79,21 @@ export default function Register() {
       setStep(step + 1);
       return;
     }
+
+    // Motorcycle and tricycle riders need a license and OR/CR. If any is missing, go back to Documents.
+    const missingMotorDocs = isMotor ? motorDocs.filter((d) => !docs[d.key]) : [];
+    if (missingMotorDocs.length > 0) {
+      setStep(1);
+      setError(
+        `${vehicle} riders need a ${missingMotorDocs.map((d) => d.label).join(' and ')}. Add ${
+          missingMotorDocs.length === 1 ? 'it' : 'them'
+        } here, then continue.`
+      );
+      return;
+    }
+
     // Only upload the documents needed for the chosen vehicle.
+    const requiredDocs = isMotor ? DOCUMENTS : everyoneDocs;
     const neededDocs = Object.fromEntries(requiredDocs.map((d) => [d.key, docs[d.key]]));
     setBusy(true);
     try {
@@ -86,7 +102,7 @@ export default function Register() {
         phone: toInternational(phone),
         town,
         vehicle,
-        plate: needsMotorDocs ? plate.trim().toUpperCase() : '',
+        plate: isMotor ? plate.trim().toUpperCase() : '',
         docs: neededDocs,
       });
     } catch (err) {
@@ -99,6 +115,36 @@ export default function Register() {
     setError('');
     if (step === 0) logout();
     else setStep(step - 1);
+  };
+
+  const renderDoc = (d, tag) => {
+    const src = previews[d.key];
+    return (
+      <label key={d.key} className="doc">
+        {src ? (
+          <img className="doc-thumb" src={src} alt="" />
+        ) : (
+          <span className="doc-empty">
+            <Camera size={22} aria-hidden="true" />
+          </span>
+        )}
+        <span className="doc-text">
+          <span className="doc-label">
+            {d.label}
+            <span className={`doc-tag${tag === 'Required' ? ' required' : ''}`}>{tag}</span>
+          </span>
+          <span className={`doc-status${src ? ' ok' : ''}`}>{src ? 'Added. Tap to replace.' : 'Tap to add a photo'}</span>
+        </span>
+        {src && <CircleCheck size={22} className="icon-pili" aria-hidden="true" />}
+        <input
+          type="file"
+          accept="image/*"
+          capture={d.key === 'selfie' ? 'user' : undefined}
+          onChange={(e) => onPhoto(d, e)}
+          hidden
+        />
+      </label>
+    );
   };
 
   return (
@@ -155,6 +201,17 @@ export default function Register() {
 
         {step === 1 && (
           <>
+            <p className="muted register-first">
+              Take clear photos. They're stored privately, and only our review team can see them.
+            </p>
+            {everyoneDocs.map((d) => renderDoc(d, 'Required'))}
+            <p className="field-label doc-group-label">If you ride a motorcycle or tricycle</p>
+            {motorDocs.map((d) => renderDoc(d, 'For motorcycle or tricycle'))}
+          </>
+        )}
+
+        {step === 2 && (
+          <>
             <span className="field-label register-first">Vehicle type</span>
             <div className="vehicles" role="group" aria-label="Vehicle type">
               {VEHICLES.map((v) => (
@@ -163,52 +220,24 @@ export default function Register() {
                   type="button"
                   className={`vehicle${vehicle === v ? ' active' : ''}`}
                   aria-pressed={vehicle === v}
-                  onClick={() => setVehicle(v)}
+                  onClick={() => {
+                    setVehicle(v);
+                    setError('');
+                  }}
                 >
                   {v}
                 </button>
               ))}
             </div>
-            {needsMotorDocs && vehicle !== '' && (
+            {isMotor && (
               <label className="field plate-field">
                 <span>Plate number</span>
                 <input value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="ABC 1234" autoCapitalize="characters" />
               </label>
             )}
-          </>
-        )}
-
-        {step === 2 && (
-          <>
-            <p className="muted register-first">
-              Take clear photos. They're stored privately, and only our review team can see them.
-            </p>
-            {requiredDocs.map((d) => {
-              const src = previews[d.key];
-              return (
-                <label key={d.key} className="doc">
-                  {src ? (
-                    <img className="doc-thumb" src={src} alt="" />
-                  ) : (
-                    <span className="doc-empty">
-                      <Camera size={22} aria-hidden="true" />
-                    </span>
-                  )}
-                  <span className="doc-text">
-                    <span className="doc-label">{d.label}</span>
-                    <span className={`doc-status${src ? ' ok' : ''}`}>{src ? 'Added. Tap to replace.' : 'Tap to add a photo'}</span>
-                  </span>
-                  {src && <CircleCheck size={22} className="icon-pili" aria-hidden="true" />}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture={d.key === 'selfie' ? 'user' : undefined}
-                    onChange={(e) => onPhoto(d, e)}
-                    hidden
-                  />
-                </label>
-              );
-            })}
+            {vehicle === 'Bicycle' && (
+              <p className="muted small plate-field">Bicycle riders don't need a plate number, license, or OR/CR.</p>
+            )}
           </>
         )}
 
