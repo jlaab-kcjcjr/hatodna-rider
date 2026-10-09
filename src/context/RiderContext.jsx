@@ -141,6 +141,27 @@ export function RiderProvider({ children }) {
     await loadRider();
   };
 
+  // Saves the rider's fixes, uploads any replaced documents, then sends the application back for review.
+  const resubmitApplication = async ({ fullName, phone, town, vehicle, plate, newDocs }) => {
+    const uploaded = [];
+    for (const [docType, file] of Object.entries(newDocs)) {
+      const path = await uploadPrivate('rider-documents', userId, file, docType);
+      uploaded.push({ rider_id: userId, doc_type: docType, file_path: path, uploaded_at: new Date().toISOString() });
+    }
+    await updateProfile({ full_name: fullName, phone });
+    const { error } = await supabase.from('riders').update({ town, vehicle, plate }).eq('id', userId);
+    check(error, 'Could not save your details.');
+    if (uploaded.length > 0) {
+      const { error: docError } = await supabase
+        .from('rider_documents')
+        .upsert(uploaded, { onConflict: 'rider_id,doc_type' });
+      check(docError, 'Could not save your documents.');
+    }
+    const { error: rpcError } = await supabase.rpc('resubmit_rider');
+    check(rpcError, 'Could not resubmit your application.');
+    await loadRider();
+  };
+
   const toggleOnline = async (value) => {
     const { data, error } = await supabase
       .from('riders')
@@ -184,6 +205,7 @@ export function RiderProvider({ children }) {
         activeJob,
         history,
         registerRider,
+        resubmitApplication,
         toggleOnline,
         claimOrder,
         pickUp,

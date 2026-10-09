@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { CalendarCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useRider } from '../context/RiderContext';
@@ -111,6 +111,18 @@ export default function Pending() {
               ))}
             </ol>
           </>
+        )}
+
+        {rider.status === 'rejected' && (
+          <section className="resubmit-box">
+            <h2 className="section-title">Ready to try again?</h2>
+            <p className="muted">
+              Fix what our team asked for, update your documents if needed, and send your application back for review.
+            </p>
+            <Link to="/resubmit" className="btn btn-primary btn-block resubmit-btn">
+              Fix and resubmit
+            </Link>
+          </section>
         )}
 
         <p className="small contact-line">

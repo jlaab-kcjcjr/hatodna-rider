@@ -10,6 +10,7 @@ import Pending from './pages/Pending';
 import Jobs from './pages/Jobs';
 import Earnings from './pages/Earnings';
 import Profile from './pages/Profile';
+import Resubmit from './pages/Resubmit';
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/install" element={<InstallGuide />} />
           <Route path="/register" element={<Register />} />
           <Route path="/pending" element={<Pending />} />
+          <Route path="/resubmit" element={<Resubmit />} />
           <Route path="/" element={<RiderLayout />}>
             <Route index element={<Jobs />} />
             <Route path="earnings" element={<Earnings />} />
