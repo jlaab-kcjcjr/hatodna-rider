@@ -1,16 +1,26 @@
 import { Navigate } from 'react-router-dom';
+import { CalendarCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useRider } from '../context/RiderContext';
 import MayonMark from '../components/MayonMark';
 import BanigBand from '../components/BanigBand';
 
-const NEXT_STEPS = [
+const CONTACT_EMAIL = 'jlaabdevstudio@gmail.com';
+
+const STEPS_PENDING = [
   'We check your documents.',
   'You attend a short rider orientation.',
+  'We activate your account.',
   'You go online and start earning.',
 ];
 
-const CONTACT_EMAIL = 'jlaabdevstudio@gmail.com';
+const STEPS_ORIENTATION = [
+  'Attend the orientation on the schedule above.',
+  'Our team activates your account.',
+  'You go online and start earning.',
+];
+
+const BRING = ['A valid government ID', 'Your vehicle documents (license and OR/CR, if you have a motor vehicle)', 'Your phone, with HatodNa Rider open'];
 
 export default function Pending() {
   const { session, loading, profile, logout } = useAuth();
@@ -25,7 +35,11 @@ export default function Pending() {
   const content = {
     pending: {
       title: `Dios mabalos, ${firstName}!`,
-      text: "Your application is being reviewed. This usually takes 1 to 2 days. We'll contact you once you're approved.",
+      text: "Your application is being reviewed. This usually takes 1 to 2 days. We'll email you once it's approved.",
+    },
+    orientation: {
+      title: `You're approved, ${firstName}!`,
+      text: 'One last step: attend a short rider orientation. After that, our team activates your account so you can start accepting deliveries.',
     },
     rejected: {
       title: "We couldn't approve your application yet",
@@ -37,6 +51,8 @@ export default function Pending() {
     },
   }[rider.status];
 
+  const steps = rider.status === 'orientation' ? STEPS_ORIENTATION : STEPS_PENDING;
+
   return (
     <div className="register">
       <div className="page page-narrow">
@@ -45,6 +61,24 @@ export default function Pending() {
         </div>
         <h1 className="page-title">{content.title}</h1>
         <p className="muted">{content.text}</p>
+
+        {rider.status === 'orientation' && (
+          <section className="orientation-card">
+            <p className="orientation-title">
+              <CalendarCheck size={20} aria-hidden="true" />
+              Your orientation
+            </p>
+            <p className="orientation-schedule">
+              {rider.orientation_note || 'Our team will contact you with the schedule.'}
+            </p>
+            <p className="job-label">Please bring</p>
+            <ul className="bring-list">
+              {BRING.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <div className="bleed pending-band">
           <BanigBand id="pending-band" height={10} />
@@ -68,11 +102,11 @@ export default function Pending() {
           </div>
         </div>
 
-        {rider.status === 'pending' && (
+        {(rider.status === 'pending' || rider.status === 'orientation') && (
           <>
             <h2 className="section-title">What happens next</h2>
             <ol className="install-steps">
-              {NEXT_STEPS.map((text) => (
+              {steps.map((text) => (
                 <li key={text}>{text}</li>
               ))}
             </ol>
