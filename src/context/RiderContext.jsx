@@ -24,6 +24,7 @@ export function RiderProvider({ children }) {
   const [activeJob, setActiveJob] = useState(null);
   const [history, setHistory] = useState([]);
   const [cash, setCash] = useState(null); // cash on hand that hasn't been remitted yet
+  const [openRemittance, setOpenRemittance] = useState(null); // waiting for cash + proof, or for admin to verify
   const knownIds = useRef(new Set());
   const location = useLocationSharing(Boolean(activeJob));
 
@@ -47,7 +48,7 @@ export function RiderProvider({ children }) {
 
   const loadJobs = useCallback(async () => {
     if (!userId || !approved) return;
-    const [mine, done, cashResult] = await Promise.all([
+    const [mine, done, cashResult, remitResult] = await Promise.all([
       supabase
         .from('orders')
         .select(JOB_SELECT)
@@ -63,10 +64,18 @@ export function RiderProvider({ children }) {
         .order('delivered_at', { ascending: false })
         .limit(100),
       supabase.rpc('rider_cash_summary'),
+      supabase
+        .from('remittances')
+        .select('*')
+        .eq('rider_id', userId)
+        .in('status', ['awaiting_cash', 'submitted'])
+        .order('created_at', { ascending: false })
+        .limit(1),
     ]);
     setActiveJob(mine.data?.[0] ?? null);
     setHistory(done.data ?? []);
     if (!cashResult.error) setCash(cashResult.data?.[0] ?? null);
+    if (!remitResult.error) setOpenRemittance(remitResult.data?.[0] ?? null);
   }, [userId, approved]);
 
   // Unclaimed orders from stores in the rider's town. The database security rules decide what's visible.
@@ -206,6 +215,26 @@ export function RiderProvider({ children }) {
     await Promise.all([loadJobs(), loadAvailable()]);
   };
 
+  // End shift: the system locks the unremitted deliveries into a remittance and sets the rider offline.
+  const startRemittance = async () => {
+    const { error } = await supabase.rpc('rider_start_remittance');
+    check(error, 'Could not start your remittance.');
+    if (rider?.is_online) await toggleOnline(false);
+    await loadJobs();
+  };
+
+  // After handing over the cash: upload the proof photo and send it to HatodNa for verification.
+  const submitRemittance = async (remittanceId, proofFile, note = '') => {
+    const path = await uploadPrivate('remittance-proofs', userId, proofFile, 'remittance');
+    const { error } = await supabase.rpc('rider_submit_remittance', {
+      p_remittance_id: remittanceId,
+      p_proof_path: path,
+      p_note: note,
+    });
+    check(error, 'Could not submit your proof of remittance.');
+    await loadJobs();
+  };
+
   return (
     <RiderContext.Provider
       value={{
@@ -215,6 +244,9 @@ export function RiderProvider({ children }) {
         activeJob,
         history,
         cash,
+        openRemittance,
+        startRemittance,
+        submitRemittance,
         reloadJobs: loadJobs,
         registerRider,
         resubmitApplication,
