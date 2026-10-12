@@ -23,8 +23,9 @@ export function RiderProvider({ children }) {
   const [available, setAvailable] = useState([]);
   const [activeJob, setActiveJob] = useState(null);
   const [history, setHistory] = useState([]);
+  const [cash, setCash] = useState(null); // cash on hand that hasn't been remitted yet
   const knownIds = useRef(new Set());
-  const location = useLocationSharing(Boolean(activeJob));  
+  const location = useLocationSharing(Boolean(activeJob));
 
   const riderLoading = Boolean(userId) && loadedFor !== userId;
   const approved = rider?.status === 'approved';
@@ -46,7 +47,7 @@ export function RiderProvider({ children }) {
 
   const loadJobs = useCallback(async () => {
     if (!userId || !approved) return;
-    const [mine, done] = await Promise.all([
+    const [mine, done, cashResult] = await Promise.all([
       supabase
         .from('orders')
         .select(JOB_SELECT)
@@ -61,9 +62,11 @@ export function RiderProvider({ children }) {
         .eq('status', 'delivered')
         .order('delivered_at', { ascending: false })
         .limit(100),
+      supabase.rpc('rider_cash_summary'),
     ]);
     setActiveJob(mine.data?.[0] ?? null);
     setHistory(done.data ?? []);
+    if (!cashResult.error) setCash(cashResult.data?.[0] ?? null);
   }, [userId, approved]);
 
   // Unclaimed orders from stores in the rider's town. The database security rules decide what's visible.
@@ -185,8 +188,15 @@ export function RiderProvider({ children }) {
     await loadJobs();
   };
 
-  const completeDelivery = async (orderId, proofFile) => {
+  // Upload the proof photo, save the cash collected, then mark the order delivered.
+  const completeDelivery = async (orderId, proofFile, cashAmount, cashNote = '') => {
     const path = await uploadPrivate('delivery-proofs', userId, proofFile, 'proof');
+    const { error: cashError } = await supabase.rpc('rider_record_cash', {
+      p_order_id: orderId,
+      p_amount: cashAmount,
+      p_note: cashNote,
+    });
+    check(cashError, 'Could not save the cash collected.');
     const { error } = await supabase.rpc('rider_update_order', {
       p_order_id: orderId,
       p_action: 'delivered',
@@ -204,6 +214,8 @@ export function RiderProvider({ children }) {
         available,
         activeJob,
         history,
+        cash,
+        reloadJobs: loadJobs,
         registerRider,
         resubmitApplication,
         toggleOnline,
@@ -212,7 +224,7 @@ export function RiderProvider({ children }) {
         completeDelivery,
         reloadRider: loadRider,
         myLocation: location.position,
-        locationStatus: location.status,        
+        locationStatus: location.status,
       }}
     >
       {children}

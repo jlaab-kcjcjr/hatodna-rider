@@ -19,11 +19,22 @@ export default function ActiveJob() {
   const { activeJob: job, pickUp, completeDelivery, myLocation, locationStatus } = useRider();
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState('');
+  const [cashInput, setCashInput] = useState(null); // null = rider hasn't changed it, so show the order total
+  const [cashNote, setCashNote] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   const delivering = job.status === 'on_the_way';
   const stage = STAGES.indexOf(job.status);
+
+  // Cash the rider says they collected. Starts as the order total.
+  const total = Number(job.total);
+  const earning = Number(job.rider_earning ?? 0);
+  const cashText = cashInput ?? String(total);
+  const cashAmount = cashText.trim() === '' ? NaN : Number(cashText);
+  const cashValid = Number.isFinite(cashAmount) && cashAmount >= 0;
+  const cashDiff = cashValid ? Math.round((cashAmount - total) * 100) / 100 : 0;
+  const cashDifferent = cashValid && cashDiff !== 0;
 
   // Older orders may not have pins saved on the order, so fall back to the store's current pin.
   const storePoint =
@@ -87,13 +98,25 @@ export default function ActiveJob() {
   };
 
   const onComplete = () => {
+    if (!cashValid) {
+      setError('Enter the cash you collected from the customer.');
+      return;
+    }
+    if (cashDifferent && cashNote.trim().length < 3) {
+      setError('The cash is different from the order total. Write a short reason.');
+      return;
+    }
     if (!proofFile) {
       setError('Take a proof-of-delivery photo before completing.');
       return;
     }
     run(async () => {
-      await completeDelivery(job.id, proofFile);
-      window.alert(`Delivery complete. You earned ${peso(job.rider_earning)}. Ingat sa biyahe!`);
+      await completeDelivery(job.id, proofFile, cashAmount, cashDifferent ? cashNote.trim() : '');
+      setProofFile(null);
+      setProofPreview('');
+      setCashInput(null);
+      setCashNote('');
+      window.alert(`Delivery complete. You earned ${peso(earning)}. Ingat sa biyahe!`);
     });
   };
 
@@ -179,8 +202,57 @@ export default function ActiveJob() {
 
       <section className={`job-card${delivering ? ' cash-card' : ''}`}>
         <p className="job-label">Collect from customer</p>
-        <p className="cash">{peso(job.total)}</p>
-        <p className="muted">Cash on delivery. Your earning: {peso(job.rider_earning)}</p>
+        <p className="cash">{peso(total)}</p>
+        <p className="muted">Cash on delivery. Your earning: {peso(earning)}</p>
+
+        {delivering && (
+          <div className="cash-confirm">
+            <label className="cash-field">
+              <span>Cash you collected</span>
+              <div className="cash-input-wrap">
+                <span aria-hidden="true">₱</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={cashText}
+                  onChange={(e) => {
+                    setCashInput(e.target.value);
+                    setError('');
+                  }}
+                />
+              </div>
+            </label>
+
+            {cashDifferent && (
+              <>
+                <p className="cash-diff">
+                  {cashDiff < 0 ? `Short by ${peso(-cashDiff)}` : `Over by ${peso(cashDiff)}`} compared with the order
+                  total.
+                </p>
+                <label className="cash-field">
+                  <span>Reason for the difference</span>
+                  <textarea
+                    rows={2}
+                    value={cashNote}
+                    placeholder="Example: Customer was short ₱20"
+                    onChange={(e) => {
+                      setCashNote(e.target.value);
+                      setError('');
+                    }}
+                  />
+                </label>
+              </>
+            )}
+
+            {cashValid && (
+              <p className="muted small">
+                You keep {peso(earning)} as your earning. To remit from this order: {peso(Math.max(cashAmount - earning, 0))}
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       {delivering && (
@@ -206,7 +278,7 @@ export default function ActiveJob() {
         )}
         {delivering && (
           <button type="button" className="btn btn-primary btn-block" disabled={busy} onClick={onComplete}>
-            {busy ? 'Uploading proof...' : 'Complete delivery'}
+            {busy ? 'Saving delivery...' : `Confirm ${cashValid ? peso(cashAmount) : 'cash'} and complete`}
           </button>
         )}
       </div>

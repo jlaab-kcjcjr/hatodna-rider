@@ -7,6 +7,7 @@ import { peso } from '../utils/format';
 import BanigBand from '../components/BanigBand';
 import MayonMark from '../components/MayonMark';
 import ActiveJob from '../components/ActiveJob';
+import CashOnHand from '../components/CashOnHand';
 
 function OrderOffer({ order }) {
   const { claimOrder } = useRider();
@@ -116,6 +117,8 @@ export default function Jobs() {
       <div className="status-band">
         <BanigBand id="jobs-band" height={10} />
       </div>
+
+      <CashOnHand />
 
       {online && available.length > 0 ? (
         <>
