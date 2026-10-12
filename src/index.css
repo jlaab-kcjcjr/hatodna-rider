@@ -670,3 +670,17 @@ img { max-width: 100%; display: block; }
 .remit-waiting { border-color: #2E5E3E; background: #eef5ef; }
 .remit-waiting-top { display: flex; align-items: center; gap: 0.5rem; color: #2E5E3E; }
 .remit-waiting .remit-label { color: #2E5E3E; }
+
+/* Shortages and remittance records */
+.shortage-card { display: grid; gap: 0.75rem; margin-bottom: 1rem; padding: 1rem 1.125rem; border: 2px solid #B8202B; border-radius: 0.875rem; background: #fdecec; }
+.shortage-card p { margin: 0; }
+.shortage-top { display: flex; align-items: center; gap: 0.5rem; color: #B8202B; }
+.remit-history { margin-bottom: 1rem; }
+.remit-history ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.remit-history li { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 0.875rem; border: 1px solid rgba(42, 26, 22, 0.15); border-radius: 0.75rem; background: #fff; }
+.remit-history li p { margin: 0; }
+.remit-history-amount { font-weight: 800; font-variant-numeric: tabular-nums; }
+.remit-chip { padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+.remit-chip-good { background: #e5f2e8; color: #2E5E3E; }
+.remit-chip-bad { background: #fdecec; color: #B8202B; }
+.remit-chip-wait { background: #fff3d6; color: #8a5a00; }

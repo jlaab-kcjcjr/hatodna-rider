@@ -9,6 +9,7 @@ import MayonMark from '../components/MayonMark';
 import ActiveJob from '../components/ActiveJob';
 import CashOnHand from '../components/CashOnHand';
 import EndShift from '../components/EndShift';
+import RemittanceRecords from '../components/RemittanceRecords';
 
 function OrderOffer({ order }) {
   const { claimOrder } = useRider();
@@ -119,9 +120,10 @@ export default function Jobs() {
         <BanigBand id="jobs-band" height={10} />
       </div>
 
-     <CashOnHand />
-      <EndShift />
-      
+    <CashOnHand />
+    <EndShift />
+    <RemittanceRecords />
+
       {online && available.length > 0 ? (
         <>
           <h2 className="section-title">

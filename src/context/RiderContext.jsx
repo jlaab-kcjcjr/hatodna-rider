@@ -24,7 +24,7 @@ export function RiderProvider({ children }) {
   const [activeJob, setActiveJob] = useState(null);
   const [history, setHistory] = useState([]);
   const [cash, setCash] = useState(null); // cash on hand that hasn't been remitted yet
-  const [openRemittance, setOpenRemittance] = useState(null); // waiting for cash + proof, or for admin to verify
+  const [remittances, setRemittances] = useState([]); // latest remittances, newest first
   const knownIds = useRef(new Set());
   const location = useLocationSharing(Boolean(activeJob));
 
@@ -68,14 +68,13 @@ export function RiderProvider({ children }) {
         .from('remittances')
         .select('*')
         .eq('rider_id', userId)
-        .in('status', ['awaiting_cash', 'submitted'])
         .order('created_at', { ascending: false })
-        .limit(1),
+        .limit(10),
     ]);
     setActiveJob(mine.data?.[0] ?? null);
     setHistory(done.data ?? []);
     if (!cashResult.error) setCash(cashResult.data?.[0] ?? null);
-    if (!remitResult.error) setOpenRemittance(remitResult.data?.[0] ?? null);
+    if (!remitResult.error) setRemittances(remitResult.data ?? []);
   }, [userId, approved]);
 
   // Unclaimed orders from stores in the rider's town. The database security rules decide what's visible.
@@ -235,6 +234,19 @@ export function RiderProvider({ children }) {
     await loadJobs();
   };
 
+  // Rider's side of a cash shortage: explain what happened so HatodNa can decide.
+  const explainShortage = async (remittanceId, explanation) => {
+    const { error } = await supabase.rpc('rider_explain_shortage', {
+      p_remittance_id: remittanceId,
+      p_explanation: explanation,
+    });
+    check(error, 'Could not send your explanation.');
+    await loadJobs();
+  };
+
+  // The remittance still in progress (waiting for cash + proof, or for HatodNa to verify).
+  const openRemittance = remittances.find((r) => r.status === 'awaiting_cash' || r.status === 'submitted') ?? null;
+
   return (
     <RiderContext.Provider
       value={{
@@ -245,8 +257,10 @@ export function RiderProvider({ children }) {
         history,
         cash,
         openRemittance,
+        remittances,
         startRemittance,
         submitRemittance,
+        explainShortage,
         reloadJobs: loadJobs,
         registerRider,
         resubmitApplication,
