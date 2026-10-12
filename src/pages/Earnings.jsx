@@ -2,6 +2,7 @@ import { useRider } from '../context/RiderContext';
 import { peso } from '../utils/format';
 import { useNow } from '../utils/useNow';
 import BanigBand from '../components/BanigBand';
+import CashOnHand from '../components/CashOnHand';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -28,6 +29,8 @@ export default function Earnings() {
   return (
     <div className="page page-narrow">
       <h1 className="page-title">Earnings</h1>
+
+         <CashOnHand />
 
       <section className="earn-hero">
         <p className="earn-label">Today's earnings</p>
