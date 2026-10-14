@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { useRider } from '../context/RiderContext';
 import { TOWNS, VEHICLES, DOCUMENTS } from '../data/riderData';
 import BanigBand from '../components/BanigBand';
+import SelfieCapture from '../components/SelfieCapture';
+import { useRiderPhoto } from '../utils/useRiderPhoto';
 
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 
@@ -31,7 +33,9 @@ function ResubmitForm({ rider, profile }) {
   const [busy, setBusy] = useState(false);
 
   const isMotor = vehicle !== 'Bicycle';
-  const requiredDocs = DOCUMENTS.filter((d) => isMotor || !d.motorOnly);
+  // The selfie has its own big circle; the other documents are listed below it.
+  const requiredDocs = DOCUMENTS.filter((d) => d.key !== 'selfie' && (isMotor || !d.motorOnly));
+  const currentSelfie = useRiderPhoto(rider);
   const alreadyUploaded = (key) => (rider.rider_documents ?? []).some((d) => d.doc_type === key);
 
   const onPhoto = (doc, e) => {
@@ -52,6 +56,7 @@ function ResubmitForm({ rider, profile }) {
     if (!intlPhone) return setError('Enter your mobile number, like 0917 123 4567.');
     if (!town) return setError('Choose the town where you will deliver.');
     if (isMotor && plate.trim().length < 5) return setError('Enter your plate number.');
+    if (!alreadyUploaded('selfie') && !newDocs.selfie) return setError('Take a selfie. Tap the circle to open your front camera.');
     const missing = requiredDocs.find((d) => !alreadyUploaded(d.key) && !newDocs[d.key]);
     if (missing) return setError(`Add a photo for "${missing.label}".`);
 
@@ -64,7 +69,10 @@ function ResubmitForm({ rider, profile }) {
         town,
         vehicle,
         plate: isMotor ? plate.trim().toUpperCase() : '',
-        newDocs: Object.fromEntries(requiredDocs.filter((d) => newDocs[d.key]).map((d) => [d.key, newDocs[d.key]])),
+        newDocs: {
+          ...(newDocs.selfie ? { selfie: newDocs.selfie } : {}),
+          ...Object.fromEntries(requiredDocs.filter((d) => newDocs[d.key]).map((d) => [d.key, newDocs[d.key]])),
+        },
       });
       navigate('/pending', { replace: true });
     } catch (err) {
@@ -145,6 +153,11 @@ function ResubmitForm({ rider, profile }) {
 
         <h2 className="section-title">Documents</h2>
         <p className="muted small">Replace any photo our team asked you to fix. Tap a document to choose a new photo.</p>
+        <SelfieCapture
+          preview={previews.selfie}
+          existingUrl={currentSelfie}
+          onPick={(e) => onPhoto({ key: 'selfie' }, e)}
+        />
         {requiredDocs.map((d) => {
           const src = previews[d.key];
           const had = alreadyUploaded(d.key);

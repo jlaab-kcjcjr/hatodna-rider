@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useRider } from '../context/RiderContext';
 import { TOWNS, VEHICLES, DOCUMENTS } from '../data/riderData';
 import BanigBand from '../components/BanigBand';
+import SelfieCapture from '../components/SelfieCapture';
 
 // Matches the rider flowchart: personal information, then documents, then the rider profile.
 const STEP_TITLES = ['Personal information', 'Documents', 'Rider profile'];
@@ -36,8 +37,10 @@ export default function Register() {
   if (rider) return <Navigate to="/" replace />;
 
   const isMotor = vehicle !== '' && vehicle !== 'Bicycle';
-  const everyoneDocs = DOCUMENTS.filter((d) => !d.motorOnly);
-  const motorDocs = DOCUMENTS.filter((d) => d.motorOnly);
+  // The selfie has its own big step at the top of Documents; the rest are listed below it.
+  const docList = DOCUMENTS.filter((d) => d.key !== 'selfie');
+  const everyoneDocs = docList.filter((d) => !d.motorOnly);
+  const motorDocs = docList.filter((d) => d.motorOnly);
 
   const validate = () => {
     if (step === 0) {
@@ -46,6 +49,7 @@ export default function Register() {
       if (!town) return 'Choose the town where you will deliver.';
     }
     if (step === 1) {
+      if (!docs.selfie) return 'Take a selfie first. Tap the circle to open your front camera.';
       const missing = everyoneDocs.find((d) => !docs[d.key]);
       if (missing) return `Add a photo for "${missing.label}".`;
     }
@@ -93,8 +97,11 @@ export default function Register() {
     }
 
     // Only upload the documents needed for the chosen vehicle.
-    const requiredDocs = isMotor ? DOCUMENTS : everyoneDocs;
-    const neededDocs = Object.fromEntries(requiredDocs.map((d) => [d.key, docs[d.key]]));
+    const requiredDocs = isMotor ? docList : everyoneDocs;
+    const neededDocs = {
+      selfie: docs.selfie,
+      ...Object.fromEntries(requiredDocs.map((d) => [d.key, docs[d.key]])),
+    };
     setBusy(true);
     try {
       await registerRider({
@@ -204,6 +211,8 @@ export default function Register() {
             <p className="muted register-first">
               Take clear photos. They're stored privately, and only our review team can see them.
             </p>
+            <SelfieCapture preview={previews.selfie} onPick={(e) => onPhoto({ key: 'selfie' }, e)} />
+            <p className="field-label doc-group-label">Your documents</p>
             {everyoneDocs.map((d) => renderDoc(d, 'Required'))}
             <p className="field-label doc-group-label">If you ride a motorcycle or tricycle</p>
             {motorDocs.map((d) => renderDoc(d, 'For motorcycle or tricycle'))}

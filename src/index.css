@@ -684,3 +684,21 @@ img { max-width: 100%; display: block; }
 .remit-chip-good { background: #e5f2e8; color: #2E5E3E; }
 .remit-chip-bad { background: #fdecec; color: #B8202B; }
 .remit-chip-wait { background: #fff3d6; color: #8a5a00; }
+
+/* ===== Selfie step and rider photo ===== */
+.selfie { display: grid; justify-items: center; gap: 0.5rem; margin: 1rem 0 0.5rem; padding: 1.25rem 1rem; text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.selfie-title { font-weight: 800; font-size: 1.0625rem; }
+.selfie-frame {
+  position: relative; display: grid; place-items: center; overflow: hidden; cursor: pointer;
+  width: min(13rem, 70vw); aspect-ratio: 1; margin-top: 0.5rem; border-radius: 50%;
+  background: var(--abaca-soft); border: 3px dashed var(--abaca);
+}
+.selfie-frame.has-photo { border: 3px solid var(--pili); }
+.selfie-frame img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; }
+.selfie-guide { position: absolute; width: 58%; height: 74%; border: 2px dashed rgba(42, 26, 22, 0.35); border-radius: 50%; }
+.selfie-empty { position: relative; display: grid; justify-items: center; gap: 0.375rem; color: var(--ink); font-weight: 800; font-size: 0.9375rem; padding: 0 1rem; }
+.selfie-ok { display: inline-flex; align-items: center; gap: 0.375rem; color: var(--pili); font-weight: 600; font-size: 0.875rem; }
+.selfie-tips { display: grid; gap: 0.25rem; margin: 0.25rem 0 0; padding: 0; list-style: none; text-align: left; font-size: 0.875rem; color: var(--ink-soft); }
+.selfie-tips li::before { content: '✓'; margin-right: 0.5rem; color: var(--pili); font-weight: 800; }
+.avatar-photo { object-fit: cover; padding: 0; border: 3px solid var(--surface); box-shadow: 0 0 0 2px var(--pili); }
+.profile-photo-note { max-width: 22rem; margin: 0.75rem auto 0; }

@@ -3,6 +3,7 @@ import { ShieldCheck, Smartphone, LogOut, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useRider } from '../context/RiderContext';
 import { initialsOf } from '../utils/format';
+import { useRiderPhoto } from '../utils/useRiderPhoto';
 import BanigBand from '../components/BanigBand';
 
 const showPhone = (phone) => (phone?.startsWith('+63') ? `0${phone.slice(3)}` : phone || 'Not provided');
@@ -10,6 +11,7 @@ const showPhone = (phone) => (phone?.startsWith('+63') ? `0${phone.slice(3)}` : 
 export default function Profile() {
   const { session, profile, logout } = useAuth();
   const { rider, history } = useRider();
+  const photo = useRiderPhoto(rider);
   const name = profile?.full_name || 'Rider';
 
   const details = [
@@ -27,13 +29,20 @@ export default function Profile() {
   return (
     <div className="page page-narrow">
       <section className="profile-hero">
-        <div className="avatar avatar-pili">{initialsOf(name)}</div>
+        {photo ? (
+          <img className="avatar avatar-photo" src={photo} alt={name} />
+        ) : (
+          <div className="avatar avatar-pili">{initialsOf(name)}</div>
+        )}
         <h1 className="profile-name">{name}</h1>
         <p className="muted">{session?.user.email}</p>
         <span className="badge">
           <ShieldCheck size={14} aria-hidden="true" />
           Approved rider
         </span>
+        <p className="muted small profile-photo-note">
+          Customers see this photo while you deliver their order. To change it, contact HatodNa.
+        </p>
       </section>
       <div className="profile-band">
         <BanigBand id="rider-profile-band" height={10} />
