@@ -5,6 +5,7 @@ import { useRider } from '../context/RiderContext';
 import { initialsOf } from '../utils/format';
 import { useRiderPhoto } from '../utils/useRiderPhoto';
 import BanigBand from '../components/BanigBand';
+import RiderReviews from '../components/RiderReviews';
 
 const showPhone = (phone) => (phone?.startsWith('+63') ? `0${phone.slice(3)}` : phone || 'Not provided');
 
@@ -56,6 +57,8 @@ export default function Profile() {
           </div>
         ))}
       </div>
+
+      <RiderReviews riderId={rider.id} />
 
       <ul className="menu-list">
         <li>
